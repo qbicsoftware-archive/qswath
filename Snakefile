@@ -1,3 +1,10 @@
+import os
+import subprocess
+from os.path import exists as pexists
+from os.path import join as pjoin
+import hashlib
+
+
 configfile: "config.json"
 
 workdir: config['var']
@@ -97,19 +104,32 @@ def params(name):
         raise ValueError("ini file '%s' not found" % path) from e
 
 
-DDA_INPUT = config['params']['mzml_dda']
+def make_ini_diff():
+    orig_ini = pjoin(R_HOME, '..', 'inis')
+    ini_diff = subprocess.Popen(
+        ['diff', '-u', '-w', orig_ini, INI_PATH],
+        stdout=subprocess.PIPE
+    )
+    ini_diff.wait()
+    return ini_diff.communicate()[0].decode()
+
+
+DDA_INPUT = os.path.join(config['data'],
+                         config['params']['mzml_dda'] + ".mzML")
 DIA_INPUT = config['params']['mzml_dia']
-WINDOWS = config['params']['windows']
+WINDOWS = os.path.join(config['data'],
+                       config['params']['windows'])
 
 
 for name in DIA_INPUT:
-    file = os.path.join(config['data'], name + "mzML")
+    file = os.path.join(config['data'], name + ".mzML")
     if not os.path.exists(file):
         raise ValueError("Could not find file %s" % file)
 
 
-if not os.path.exists(INPUT_FILE):
-    raise ValueError("Could not find file %s" % INPUT_FILE)
+if not os.path.exists(DDA_INPUT):
+    file = os.path.join(config['data'], name + ".mzML")
+    raise ValueError("Could not find file %s" % DDA_INPUT)
 
 
 if not os.path.exists(WINDOWS):
@@ -117,13 +137,21 @@ if not os.path.exists(WINDOWS):
 
 
 rule all:
-    input: expand("{result}/{name}.html", name=DDA_INPUT, result=RESULT), \
-           expand("{result}/{sample}.csv", sample=samples.keys(), result=RESULT) \
-           expand("{result}/all.idXML", result=RESULT)
+    input: expand("{result}/peptides.csv", name=DDA_INPUT, result=RESULT),
+           expand("{result}/report.html", result=RESULT)
+
+
+rule report:
+    input: expand("{result}/peptides.csv", result=RESULT)
+    output: expand("{result}/report.html", result=RESULT)
+    run:
+        with open(str(output), 'w') as f:
+            json.dump(f, {"config": config, "ini_diff": make_ini_diff(),
+                          "version": VERSION})
 
 
 rule decoy:
-    input: [pjoin(config['ini'], fasta for fasta in config['params']['fasta'])]
+    input: [pjoin(config['ref'], fasta) for fasta in config['params']['fasta']]
     output: "Decoy/database.fasta"
     shell:
         "cat {input} | decoyFastaGenerator.pl - DECOY_ - > {output}"
@@ -189,7 +217,7 @@ rule ExtractChromatogram:
 
 
 rule RTNormalize:
-    input: [os.path.join(config['data'], name) for name in DIA_INPUT], \
+    input: expand("{data}/{name}.mzML", data=DATA, name=DIA_INPUT), \
            lib="library.TraML"
     output: "RTNormalized/trafo.trafoXML"
     params: params('OpenSwathRTNormalizer')
@@ -207,7 +235,7 @@ rule RTNormalize:
 rule ExtractChromatogramNorm:
     input: mzml=os.path.join(config['data'], "{name}.mzML"), \
            lib="library.TraML", \
-           trafo="RTNormalized/trafoXML"
+           trafo="RTNormalized/trafo.trafoXML"
     output: "ExtractChromatogramNorm/{name}.mzML"
     params: params("OpenSwathChromatogramExtractor")
     run:
@@ -231,9 +259,9 @@ rule OpenSwathAnalyzer:
 
 
 rule ToTSV:
-    input: features=[os.path.join("Analysed", name + ".feature.XML")
+    input: features=[os.path.join("Analysed", name + ".feature.XML") \
                      for name in DIA_INPUT], \
-           mzml=[os.path.join("ExtractChromatogramNorm", name + '.mzML')
+           mzml=[os.path.join("ExtractChromatogramNorm", name + '.mzML') \
                  for name in DIA_INPUT]
     output: os.path.join(config['result'], "peptides.csv")
     run:
