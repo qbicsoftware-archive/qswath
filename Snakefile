@@ -165,18 +165,14 @@ rule xinteract:
 
 rule spectrast:
     input: "Search/peptides.pep.xml"
-    output: "Filter/peptides.pep.xml"
-    shell: "spectrast -c_BIN! -cf'Protein!~DECOY' -cN{output} -cP0.001 {input}"
-
-
-rule spectrast_irt:
-    input: "Filter/peptides.pep.xml"
-    output: "IRT/peptides.splib"
-    shell: "spectrast2spectrast_irt.py -i {input} -o {output}"
+    output: "Spectrast/peptides.splib"
+    shell:
+        "spectrast -c_BIN! -cf'Protein!~DECOY' -cNtmp.pep.xml -cP0.001 {input}"
+        "spectrast2spectrast_irt.py -i tmp.pep.xml -o {output}"
 
 
 rule consensus:
-    input: "IRT/peptides.splib"
+    input: "Spectrast/peptides.splib"
     output: "Consensus/peptides.splib"
     shell: "spectrast -c_BIN! -cAC -cN{output} {input}"
 
