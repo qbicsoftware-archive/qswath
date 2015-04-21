@@ -217,7 +217,7 @@ rule ExtractChromatogram:
 
 
 rule RTNormalize:
-    input: expand("{data}/{name}.mzML", data=DATA, name=DIA_INPUT), \
+    input: expand("ExtractChromatogram/{name}.mzML", name=DIA_INPUT), \
            lib="library.TraML"
     output: "RTNormalized/trafo.trafoXML"
     params: params('OpenSwathRTNormalizer')
