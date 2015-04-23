@@ -1,13 +1,17 @@
 #!/bin/bash
 
-if [ ! -f ../usr/bin/activate ]
+BASE=$(dirname ${BASH_SOURCE[0]})/..
+
+hash conda 2>/dev/null || { echo >&2 "Could not find conda. Aborting."; exit 1; }
+
+if [ ! -f ${BASE}/usr/bin/activate ]
 then
-	conda create -p ../usr "python>3"
+	conda create --yes -p ${BASE}/usr "python>3"
 fi
 
-source activate ../usr
+source activate ${BASE}/usr
 
-conda install numpy scipy pip
-conda install -c aseyboldt tpp openms
+conda install --yes numpy scipy pip
+conda install --yes -c aseyboldt tpp openms
 pip install git+https://github.com/hroest/msproteomicstools.git@feature/python3
 pip install snakemake
