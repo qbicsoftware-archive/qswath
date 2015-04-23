@@ -23,16 +23,9 @@ cp your/fasta ref
 qproject run -t .
 ```
 
-## Dependencies
+## Config file
 
-- OpenMS >= 2.0
-- msproteomicstools
-- TPP
-- snakemake
-
-All tools must be in the PATH.
-
-The config file (`config.json`) should look like this:
+The config file (`config.json`) should look something like this:
 
 ```json
 {
@@ -47,9 +40,9 @@ The config file (`config.json`) should look like this:
     "logs": "/home/adr/git/QBiC/qswath/testproj/logs/qswath",
     "params": {
         "mzml_dda": "lib",
-	"mzml_dia": ["data", "data2"],
-	"windows": "windows.csv",
-	"fasta": ["database.fasta"]
+        "mzml_dia": ["data", "data2"],
+        "windows": "windows.csv",
+        "fasta": ["database.fasta", "crap.fasta"]
     }
 }
 ```
