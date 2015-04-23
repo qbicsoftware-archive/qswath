@@ -1,9 +1,29 @@
+# qswath
+
 A workflow that creates spectral libraries for OpenSwath and uses it
 to analyse data.
 
 This is very much *not* finished!
 
-Dependencies:
+## Quickstart
+
+Install anaconda.
+
+Run the following commands:
+
+```
+pip install git+https://github.com/qbicsoftware/qproject
+cd your/workdir
+qproject create -t . -w github:qbicsoftware/qswath
+cp src/inis/* etc
+bash src/build
+vim src/config.json  # add a section "params" with the parameters you need
+cp your/input/data data
+cp your/fasta ref
+qproject run -t .
+```
+
+## Dependencies
 
 - OpenMS >= 2.0
 - msproteomicstools
