@@ -110,7 +110,6 @@ def make_ini_diff():
         ['diff', '-u', '-w', orig_ini, INI_PATH],
         stdout=subprocess.PIPE
     )
-    ini_diff.wait()
     return ini_diff.communicate()[0].decode()
 
 
