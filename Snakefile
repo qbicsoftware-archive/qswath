@@ -19,12 +19,21 @@ except subprocess.CalledProcessError:
     VERSION = 'unknown'
 
 R_HOME = os.path.join(SNAKEDIR, 'r_scripts')
-INI_PATH = os.path.join(SNAKEDIR, 'inis')
+DEFAULT_INIS = os.path.join(SNAKEDIR, 'inis')
 
 DATA = config['data']
 RESULT = config['result']
 LOGS = config['logs']
 REF = config['ref']
+ETC = config['etc']
+
+params_path = os.path.join(config['etc'], 'global.json')
+
+if not os.path.exists(params_path):
+    raise ValueError("Missing global parameter file %s" % params_path)
+
+with open(params_path) as f:
+    params = json.load(f)
 
 try:
     path = subprocess.check_output(["which", "IDMerger"]).decode()
@@ -89,12 +98,12 @@ class OpenMS:
 
         return wrapper
 
-openms = OpenMS(OPENMS_BIN, INI_PATH, LOGS)
+openms = OpenMS(OPENMS_BIN, ETC, LOGS)
 
 # store the content of the ini file, so that snakemake will run
 # rules agrain if the parameters inside the file change.
-def params(name):
-    path = pjoin(INI_PATH, name + '.ini')
+def openms_ini(name):
+    path = pjoin(ETC, name + '.ini')
     try:
         with open(path, 'rb') as f:
             # TODO replace makes sure that there are no wildcards
@@ -105,19 +114,16 @@ def params(name):
 
 
 def make_ini_diff():
-    orig_ini = pjoin(R_HOME, '..', 'inis')
     ini_diff = subprocess.Popen(
-        ['diff', '-u', '-w', orig_ini, INI_PATH],
+        ['diff', '-u', '-w', DEFAULT_INIS, ETC],
         stdout=subprocess.PIPE
     )
     return ini_diff.communicate()[0].decode()
 
 
-DDA_INPUT = os.path.join(config['data'],
-                         config['params']['mzml_dda'] + ".mzML")
-DIA_INPUT = config['params']['mzml_dia']
-WINDOWS = os.path.join(config['data'],
-                       config['params']['windows'])
+DDA_INPUT = os.path.join(config['data'], params['mzml_dda'] + ".mzML")
+DIA_INPUT = params['mzml_dia']
+WINDOWS = os.path.join(config['data'], params['windows'])
 
 
 for name in DIA_INPUT:
@@ -150,14 +156,27 @@ rule report:
 
 
 rule decoy:
-    input: [pjoin(config['ref'], fasta) for fasta in config['params']['fasta']]
+    input: [pjoin(config['ref'], fasta) for fasta in params['fasta']]
     output: "Decoy/database.fasta"
     shell:
         "cat {input} | decoyFastaGenerator.pl - DECOY_ - > {output}"
 
 
+rule convert_mzXML:
+    input: os.path.join(config['data'], "{name}.mzXML")
+    output: "mzML/{name}.mzML"
+    shell: "msconvert {input} --outfile {output}"
+
+
+rule convert_mzML:
+    input: os.path.join(config['data'], "{name}.mzML")
+    output: "mzML/{name}.mzML"
+    shell: "ln -- {input} {output}"
+
+
 rule xinteract:
-    input: db="Decoy/database.fasta", mzml=DDA_INPUT
+    input: db="Decoy/database.fasta", \
+           mzml=expand("mzML/{name}.mzML", name=params['mzml_dda'])
     output: "Search/peptides.pep.xml"
     shell: "xinteract -N{output} -i -dDECOY_ -OAdtP {input}"
 
@@ -203,7 +222,7 @@ rule ExtractChromatogram:
     input: mzml=os.path.join(config['data'], "{name}.mzML"), \
            lib="library.TraML"
     output: "ExtractChromatogram/{name}.mzML"
-    params: params("OpenSwathChromatogramExtractor")
+    params: openms_ini("OpenSwathChromatogramExtractor")
     run:
         extra_args = ['-tr', input['lib'], '-is_swath']
         openms.OpenSwathChromatogramExtractor(
@@ -215,7 +234,7 @@ rule RTNormalize:
     input: expand("ExtractChromatogram/{name}.mzML", name=DIA_INPUT), \
            lib="library.TraML"
     output: "RTNormalized/trafo.trafoXML"
-    params: params('OpenSwathRTNormalizer')
+    params: openms_ini('OpenSwathRTNormalizer')
     run:
         merged = "RTNormalized/_merged.mzML"
         openms.FileMerger(input, merged)
@@ -232,7 +251,7 @@ rule ExtractChromatogramNorm:
            lib="library.TraML", \
            trafo="RTNormalized/trafo.trafoXML"
     output: "ExtractChromatogramNorm/{name}.mzML"
-    params: params("OpenSwathChromatogramExtractor")
+    params: openms_ini("OpenSwathChromatogramExtractor")
     run:
         extra_args = ['-tr', input['lib'], '-is_swath']
         extra_args += ['-rt_norm', input['trafo']]
@@ -245,7 +264,7 @@ rule OpenSwathAnalyzer:
     input: normed="ExtractChromatogramNorm/{name}.mzML", \
            mzml=os.path.join(config['data'], "{name}.mzML")
     output: "Analysed/{name}.feature.XML"
-    params: params("OpenSwathAnalyzer")
+    params: openms_ini("OpenSwathAnalyzer")
     run:
         extra_args = ['-swath_files', input['mzml']]
         openms.OpenSwathAnalyzer(
