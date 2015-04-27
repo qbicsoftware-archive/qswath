@@ -13,5 +13,5 @@ source activate ${BASE}/usr
 
 conda install --yes numpy scipy pip
 conda install --yes -c aseyboldt tpp openms
-pip install git+https://github.com/hroest/msproteomicstools.git@feature/python3
+pip install git+https://github.com/aseyboldt/msproteomicstools.git@feature/python3
 pip install snakemake
