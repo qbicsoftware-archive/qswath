@@ -164,19 +164,35 @@ rule decoy:
 
 rule convert_mzXML:
     input: os.path.join(config['data'], "{name}.mzXML")
-    output: "mzML/{name}.mzML"
-    shell: "msconvert {input} --outfile {output}"
+    output: "mzXML/{name}.mzXML"
+    shell: "ln -- {input} {output}"
 
 
 rule convert_mzML:
     input: os.path.join(config['data'], "{name}.mzML")
-    output: "mzML/{name}.mzML"
-    shell: "ln -- {input} {output}"
+    output: "mzXML/{name}.mzXML"
+    shell: "msconvert {input} --mzXML -o mzXML --outfile {output}"
+
+
+rule comet:
+    input: mzxml="mzXML/{name}.mzXML", \
+           fasta="Decoy/database.fasta"
+    output: "Search/comet_{name}.pep.xml"
+    run:
+        params = os.path.join(INIS, "comet.params")
+	outbase, ext = os.path.splitext(output[0])
+        shell(
+            "comet -P{params} -D{fasta} -N{output}".format(
+                params=params,
+                fasta=input['fasta'],
+                output=outbase,
+            )
+        )
 
 
 rule xinteract:
     input: db="Decoy/database.fasta", \
-           mzml=expand("mzML/{name}.mzML", name=params['mzml_dda'])
+           mzml=expand("Search/comet_{name}.pep.xml", name=params['mzml_dda'])
     output: "Search/peptides.pep.xml"
     shell: "xinteract -N{output} -i -dDECOY_ -OAdtP {input}"
 

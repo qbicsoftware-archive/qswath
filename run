@@ -7,4 +7,4 @@ then
 	source activate ../usr
 fi
 
-snakemake "$@" > ../logs/snake.out 2> ../logs/snake.err
+snakemake to_TraML "$@" > ../logs/snake.out 2> ../logs/snake.err
