@@ -179,15 +179,20 @@ rule comet:
            fasta="Decoy/database.fasta"
     output: "Search/comet_{name}.pep.xml"
     run:
-        params = os.path.join(INIS, "comet.params")
-	outbase, ext = os.path.splitext(output[0])
-        shell(
-            "comet -P{params} -D{fasta} -N{output}".format(
-                params=params,
-                fasta=input['fasta'],
-                output=outbase,
+        params = os.path.join(ETC, "comet.params")
+        name = wildcards['name']
+        with open(os.path.join(LOGS, "comet_" + name), "w") as f:
+            subprocess.check_call(
+                [
+                    "comet",
+                    "-P" + params,
+                    "-D" + str(input['fasta']),
+                    "-N{}".format(str(output)),
+		    str(input['mzxml'])
+                ],
+                stdout=f,
+                stderr=f,
             )
-        )
 
 
 rule xinteract:
