@@ -56,7 +56,9 @@ else:
     config['params'] = {}
 
 if 'dda_data' not in config['params']:
-    config['params']['dda_data'] = glob(data('*.mzML'))
+    names = [file[:-len('.mzML')] for file in glob(data('*.mzML'))]
+    names = [os.path.split(name)[-1] for name in names]
+    config['params']['dda_data'] = names
 if 'fasta' not in config['params']:
     config['params']['fasta'] = glob(ref('*.fasta'))
 
@@ -64,7 +66,7 @@ DDA_INPUT = config['params']['dda_data']
 WINDOWS = ref('windows.txt')
 
 for name in DDA_INPUT:
-    if not os.path.exists(data(name)):
+    if not os.path.exists(data(name) + '.mzML'):
         raise ValueError("Could not find file %s" % file)
 
 
@@ -81,7 +83,7 @@ rule report:
     output: expand("{result}/report.html", result=RESULT)
     run:
         with open(str(output), 'w') as f:
-            json.dump(f, {"config": config, "version": VERSION})
+            json.dump({"config": config, "version": VERSION}, f)
 
 
 rule decoy:
@@ -91,9 +93,15 @@ rule decoy:
         "cat {input} | decoyFastaGenerator.pl - DECOY_ - > {output}"
 
 
+rule ConvertMZ5:
+    input: data('{name}.mzML')
+    output: "MZXML/{name}.mzXML"
+    run: "msconvert {input} --mzXML -o MZ5"
+
+
 rule comet:
     input:
-        mzml=data('{name}.mzML'),
+        mzxml="MZXML/{name}.mzXML",
         fasta="Decoy/database.fasta"
     output: "Search/comet_{name}.pep.xml"
     run:
@@ -106,7 +114,7 @@ rule comet:
                     "-P" + params,
                     "-D" + str(input['fasta']),
                     "-N{}".format(str(output)[:-len('.pep.xml')]),
-                    str(input['mzml'])
+                    str(input['mzxml'])
                 ],
                 stdout=f,
                 stderr=f,
