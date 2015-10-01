@@ -131,9 +131,9 @@ rule xinteract:
 rule spectrast:
     input: "PeptideProphet/peptides.pep.xml"
     output: "Spectrast/peptides.splib"
-    shell:
-        "spectrast -c_BIN! -cf'Protein!~DECOY' -cNtmp.pep.xml -cP0.001 {input}"
-        "spectrast2spectrast_irt.py -i tmp.pep.xml -o {output}"
+    run:
+        shell("spectrast -c_BIN! -cf'Protein!~DECOY' -cNtmp.pep.xml -cP0.001 {input}")
+        shell("spectrast2spectrast_irt.py -i tmp.pep.xml -o {output}")
 
 
 rule consensus:
