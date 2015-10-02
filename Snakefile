@@ -96,7 +96,7 @@ rule decoy:
 rule ConvertMZ5:
     input: data('{name}.mzML')
     output: "{name}.mzXML"
-    run: "msconvert {input} --mzXML -o MZ5"
+    shell: "msconvert {input} --mzXML -o MZ5"
 
 
 rule comet:
