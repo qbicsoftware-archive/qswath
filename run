@@ -1,10 +1,25 @@
-#!/bin/bash
+#!/usr/bin/env python
+import os
+import json
+import subprocess
 
-set -e
+with open("config.json") as conf:
+    config = json.load(conf)
 
-if [ -f ../usr/bin/activate ]
-then
-	source activate ../usr
-fi
+snake_out = os.path.join(config['logs'], "snake.out")
+snake_err = os.path.join(config['logs'], "snake.err")
+stats_path = os.path.join(config['logs'], "stats.json")
 
-snakemake to_TraML "$@" > ../logs/snake.out 2> ../logs/snake.err
+with open(snake_out, 'w') as out, open(snake_err, 'w') as err:
+    snake = subprocess.check_call(
+        [
+            "snakemake",
+            "--snakefile", os.path.join(config['src'], 'Snakefile'),
+            "--jobscript", os.path.join(config['src'], 'jobscript.sh'),
+            "--cluster", 'qsub',
+            "--rerun-incomplete",
+            "-j", "100",
+            "--stats", stats_path,
+        ],
+        stdout=out, stderr=err
+    )
