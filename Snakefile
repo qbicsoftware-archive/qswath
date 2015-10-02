@@ -75,8 +75,8 @@ if not os.path.exists(WINDOWS):
 
 
 rule all:
-    input: expand("{result}/library.csv", name=DDA_INPUT, result=RESULT),
-           expand("{result}/report.html", result=RESULT)
+    input:
+        result("library.csv"), result("report.html")
 
 
 rule report:
@@ -95,15 +95,15 @@ rule decoy:
 
 rule ConvertMZ5:
     input: data('{name}.mzML')
-    output: "MZXML/{name}.mzXML"
+    output: "{name}.mzXML"
     run: "msconvert {input} --mzXML -o MZ5"
 
 
 rule comet:
     input:
-        mzxml="MZXML/{name}.mzXML",
+        mzxml="{name}.mzXML",
         fasta="Decoy/database.fasta"
-    output: "Search/comet_{name}.pep.xml"
+    output: "{name}.pep.xml"
     run:
         params = etc("comet.params")
         name = wildcards['name']
@@ -122,24 +122,26 @@ rule comet:
 
 
 rule xinteract:
-    input: expand("Search/comet_{name}.pep.xml", name=DDA_INPUT)
-    output: "PeptideProphet/peptides.pep.xml"
+    input: expand("{name}.pep.xml", name=DDA_INPUT)
+    output: "peptides.pep.xml"
     shell: "xinteract -N{output} -i -dDECOY_ -OAdtP {input}"
 
 
 
 rule spectrast:
-    input: "PeptideProphet/peptides.pep.xml"
-    output: "Spectrast/peptides.splib"
+    input: "peptides.pep.xml"
+    output: "peptides.splib"
     run:
-        shell("spectrast -c_BIN! -cf'Protein!~DECOY' -cNtmp.pep.xml -cP0.001 {input}")
-        shell("spectrast2spectrast_irt.py -i tmp.pep.xml -o {output}")
+        shell("spectrast -c_BIN! -cf'Protein!~DECOY' -cNtmp -cP0.001 {input}")
+        shell("spectrast2spectrast_irt.py -i tmp.splib -o {output}")
 
 
 rule consensus:
-    input: "Spectrast/peptides.splib"
+    input: "peptides.splib"
     output: "Consensus/peptides.splib"
-    shell: "spectrast -c_BIN! -cAC -cN{output} {input}"
+    run:
+        basename = os.path.basename(str(output))
+        shell("spectrast -c_BIN! -cAC -cN%s {input}" % basename)
 
 
 rule to_tsv:
